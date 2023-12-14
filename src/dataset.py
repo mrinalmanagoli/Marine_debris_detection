@@ -10,26 +10,30 @@ from tqdm import tqdm
 from PIL import Image
 import rasterio
 
-
 VOC_CLASSES = ('background',  # always index 0
+               "Mixed water", "Wakes", "Cloud shadows", "Waves",
+               "Shallow water", "Turbid water", "Foam", "Sediment-laden water",
+               "Marine water", "Clouds", "Ship", "Natural Organic Material", "Sparse Sargassum",
+               "Dense Sargassum", "Marine debris")
+"""
                'aeroplane', 'bicycle', 'bird', 'boat',
                'bottle', 'bus', 'car', 'cat', 'chair',
                'cow', 'diningtable', 'dog', 'horse',
                'motorbike', 'person', 'pottedplant',
-               'sheep', 'sofa', 'train', 'tvmonitor')
+               'sheep', 'sofa', 'train', 'tvmonitor')"""
 
-NUM_CLASSES = len(VOC_CLASSES) + 1
+NUM_CLASSES = len(VOC_CLASSES)
 
 
 
-class PascalVOCDataset(Dataset):
+class MarineDataset(Dataset):
     """Pascal VOC 2007 Dataset"""
     def __init__(self, list_file, img_dir, mask_dir, transform=None):
         self.images = open(list_file, "rt").read().split("\n")[:-1]
         self.transform = transform
 
-        self.img_extension = ".jpg"
-        self.mask_extension = ".png"
+        self.img_extension = ".tif"
+        self.mask_extension = ".tif"
 
         self.image_root_dir = img_dir
         self.mask_root_dir = mask_dir
@@ -55,32 +59,16 @@ class PascalVOCDataset(Dataset):
         return data
 
 
-    def __compute_class_probability_new(self):
-        counts = dict((i, 0) for i in range(NUM_CLASSES))
-
-        for root, dirs, files in os.walk(img_dir):
-            for file in files:
-                file_path = os.path.join(root, file)
-                if file_path[-7 : -3] == "_cl.":
-                    ds_cl = rasterio.open(file_path)
-                    IM_CL = ds_cl.read().reshape(256, 256)
-                    for i in range(NUM_CLASSES):
-                        counts[i] += np.sum(IM_CL == i)
-        return counts
-
     def __compute_class_probability(self):
         counts = dict((i, 0) for i in range(NUM_CLASSES))
 
-        for name in self.images:
-            mask_path = os.path.join(self.mask_root_dir, name + self.mask_extension)
-
-            raw_image = Image.open(mask_path).resize((224, 224))
-            imx_t = np.array(raw_image).reshape(224*224)
-            imx_t[imx_t==255] = len(VOC_CLASSES)
-
-            for i in range(NUM_CLASSES):
-                counts[i] += np.sum(imx_t == i)
-
+        for root, dirs, files in os.walk(self.mask_root_dir):
+            for file in files:
+                file_path = os.path.join(root, file)
+                ds_cl = rasterio.open(file_path)
+                IM_CL = ds_cl.read().reshape(256, 256)
+                for i in range(NUM_CLASSES):
+                    counts[i] += np.sum(IM_CL == i)
         return counts
 
     def get_class_probability(self):
@@ -90,20 +78,35 @@ class PascalVOCDataset(Dataset):
         return torch.Tensor(p_values)
 
     def load_image(self, path=None):
-        raw_image = Image.open(path)
-        raw_image = np.transpose(raw_image.resize((224, 224)), (2,1,0))
-        imx_t = np.array(raw_image, dtype=np.float32)/255.0
+        src = rasterio.open(path)
+        data = src.read()
+
+        rgb_bands = [4, 3, 2]
+        rgb_data = data[rgb_bands, :, :]
+
+        rgb_data = (rgb_data / rgb_data.max()) * 255
+        rgb_data = rgb_data.astype(np.uint8)
+        imx_t = np.array(rgb_data, dtype=np.float32) / 255.0
 
         return imx_t
+
+    # raw_image = Image.open(path)
+    #     raw_image = np.transpose(raw_image.resize((256, 256)), (2,1,0))
+    #     imx_t = np.array(raw_image, dtype=np.float32)/255.0
+    #
+    #     return imx_t
 
     def load_mask(self, path=None):
-        raw_image = Image.open(path)
-        raw_image = raw_image.resize((224, 224))
-        imx_t = np.array(raw_image)
-        # border
-        imx_t[imx_t==255] = len(VOC_CLASSES)
+        ds = rasterio.open(path)
+        temp = ds.read().squeeze()
+        return temp
+        # raw_image = Image.open(path)
+        # raw_image = raw_image.resize((256, 256))
+        # imx_t = np.array(raw_image)
+        # # border
+        # imx_t[imx_t==255] = len(VOC_CLASSES)
 
-        return imx_t
+        # return imx_t
 
 
 if __name__ == "__main__":
@@ -113,7 +116,7 @@ if __name__ == "__main__":
     mask_dir = os.path.join(data_root, "SegmentationObject")
 
 
-    objects_dataset = PascalVOCDataset(list_file=list_file_path,
+    objects_dataset = MarineDataset(list_file=list_file_path,
                                        img_dir=img_dir,
                                        mask_dir=mask_dir)
 

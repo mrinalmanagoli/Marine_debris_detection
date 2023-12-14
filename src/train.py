@@ -14,7 +14,7 @@ python train.py --data_root /home/SharedData/intern_sayan/PascalVOC2012/data/VOC
 
 from __future__ import print_function
 import argparse
-from dataset import PascalVOCDataset, NUM_CLASSES
+from dataset import MarineDataset, NUM_CLASSES
 from model import SegNet
 import os
 import time
@@ -89,16 +89,16 @@ def train():
 
 
 if __name__ == "__main__":
-    data_root = "C:/Home/USA/University of Minnesota/Courses/CSCI 5527 - Deep Learning/Project/VOCtrainval_06-Nov-2007/VOCdevkit/VOC2007/"#args.data_root
-    train_path = "C:/Home/USA/University of Minnesota/Courses/CSCI 5527 - Deep Learning/Project/VOCtrainval_06-Nov-2007/VOCdevkit/VOC2007/ImageSets/Segmentation/train.txt"#os.path.join(data_root, args.train_path)
-    img_dir = "C:/Home/USA/University of Minnesota/Courses/CSCI 5527 - Deep Learning/Project/VOCtrainval_06-Nov-2007/VOCdevkit/VOC2007/JPEGImages/"#os.path.join(data_root, args.img_dir)
-    mask_dir = "C:/Home/USA/University of Minnesota/Courses/CSCI 5527 - Deep Learning/Project/VOCtrainval_06-Nov-2007/VOCdevkit/VOC2007/SegmentationClass/"#os.path.join(data_root, args.mask_dir)
+    proj_root_dir = "C:/Home/USA/University of Minnesota/Courses/CSCI 5527 - Deep Learning/Project/pytorch-segnet_new/"
+    train_path = os.path.join(proj_root_dir, "Data/splits/train_X.txt")
+    img_dir = os.path.join(proj_root_dir, "Data/Images/")
+    mask_dir = os.path.join(proj_root_dir, "Data/Masks/")
 
     CUDA = args.gpu is not None
     GPU_ID = args.gpu
 
 
-    train_dataset = PascalVOCDataset(list_file=train_path,
+    train_dataset = MarineDataset(list_file=train_path,
                                      img_dir=img_dir,
                                      mask_dir=mask_dir)
 
@@ -113,13 +113,13 @@ if __name__ == "__main__":
                        output_channels=NUM_OUTPUT_CHANNELS).cuda(GPU_ID)
 
         class_weights = 1.0/train_dataset.get_class_probability().cuda(GPU_ID)
-        criterion = torch.nn.CrossEntropyLoss(weight=class_weights).cuda(GPU_ID)
+        criterion = torch.nn.CrossEntropyLoss(ignore_index=-1, reduction= 'mean', weights =class_weights).cuda(GPU_ID)
     else:
         model = SegNet(input_channels=NUM_INPUT_CHANNELS,
                        output_channels=NUM_OUTPUT_CHANNELS)
 
         class_weights = 1.0/train_dataset.get_class_probability()
-        criterion = torch.nn.CrossEntropyLoss(weight=class_weights)
+        criterion = torch.nn.CrossEntropyLoss(ignore_index=-1, reduction= 'mean', weights =class_weights)
 
 
     if args.checkpoint:

@@ -14,7 +14,7 @@ python inference.py --data_root /home/SharedData/intern_sayan/PascalVOC2012/data
 
 from __future__ import print_function
 import argparse
-from dataset import PascalVOCDataset, NUM_CLASSES
+from dataset import MarineDataset, NUM_CLASSES
 import matplotlib.pyplot as plt
 from model import SegNet
 import numpy as np
@@ -105,7 +105,7 @@ if __name__ == "__main__":
 
 
 
-    val_dataset = PascalVOCDataset(list_file=val_path,
+    val_dataset = MarineDataset(list_file=val_path,
                                    img_dir=img_dir,
                                    mask_dir=mask_dir)
 
